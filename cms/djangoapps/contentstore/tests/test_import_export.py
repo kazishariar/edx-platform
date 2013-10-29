@@ -18,6 +18,7 @@ from django.conf import settings
 from xmodule.modulestore.django import loc_mapper
 
 from xmodule.contentstore.django import _CONTENTSTORE
+from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 
 TEST_DATA_CONTENTSTORE = copy.deepcopy(settings.CONTENTSTORE)
 TEST_DATA_CONTENTSTORE['DOC_STORE_CONFIG']['db'] = 'test_xcontent_%s' % uuid4().hex
@@ -207,3 +208,74 @@ class ImportTestCase(CourseTestCase):
         )
         import_status = json.loads(resp_status.content)["ImportStatus"]
         self.assertIn(import_status, (0, 3))
+
+
+@override_settings(CONTENTSTORE=TEST_DATA_CONTENTSTORE)
+class ExportTestCase(CourseTestCase):
+    """
+    Tests for the export_handler.
+    """
+    def setUp(self):
+        """
+        Sets up the test course.
+        """
+        super(ExportTestCase, self).setUp()
+        location = loc_mapper().translate_location(self.course.location.course_id, self.course.location, False, True)
+        self.url = location.url_reverse('export/', '')
+
+    def test_export_html(self):
+        """
+        Get the HTML for the page.
+        """
+        resp = self.client.get(self.url, HTTP_ACCEPT='text/html')
+        self.assertEquals(resp.status_code, 200)
+        self.assertContains(resp, "Download Files")
+
+    def test_export_json_unsupported(self):
+        """
+        JSON is unsupported.
+        """
+        resp = self.client.get(self.url, HTTP_ACCEPT='application/json')
+        self.assertEquals(resp.status_code, 406)
+
+    def test_export_targz(self):
+        """
+        Get tar.gz file, using HTTP_ACCEPT.
+        """
+        resp = self.client.get(self.url, HTTP_ACCEPT='application/x-tgz')
+        self.assertEquals(resp.status_code, 200)
+        self.assertTrue(resp.get('Content-Disposition').startswith('attachment'))
+
+    def test_export_targz_urlparam(self):
+        """
+        Get tar.gz file, using URL parameter.
+        """
+        resp = self.client.get(self.url+'?_accept=application/x-tgz')
+        self.assertEquals(resp.status_code, 200)
+        self.assertTrue(resp.get('Content-Disposition').startswith('attachment'))
+
+    def test_export_failure_top_level(self):
+        """
+        Export failure.
+        """
+        ItemFactory.create(parent_location=self.course.location, category='aawefawef')
+        resp = self.client.get(self.url, HTTP_ACCEPT='application/x-tgz')
+        self.assertEquals(resp.status_code, 200)
+        self.assertIsNone(resp.get('Content-Disposition'))
+        self.assertContains(resp, 'Unable to create xml for module')
+        self.assertContains(resp, '/course/MITx.999.Robot_Super_Course/branch/draft/block/Robot_Super_Course')
+
+    def test_export_failure_subsection_level(self):
+        """
+        Slightly different export failure.
+        """
+        vertical = ItemFactory.create(parent_location=self.course.location, category='vertical')
+        ItemFactory.create(
+            parent_location=vertical.location,
+            category='aawefawef'
+        )
+        resp = self.client.get(self.url, HTTP_ACCEPT='application/x-tgz')
+        self.assertEquals(resp.status_code, 200)
+        self.assertIsNone(resp.get('Content-Disposition'))
+        self.assertContains(resp, 'Unable to create xml for module')
+        self.assertContains(resp, '/edit/i4x://MITx/999/vertical/vertical_1')
