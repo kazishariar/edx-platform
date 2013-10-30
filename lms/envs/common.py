@@ -652,6 +652,7 @@ discussion_js = sorted(rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/discussi
 staff_grading_js = sorted(rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/staff_grading/**/*.js'))
 open_ended_js = sorted(rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/open_ended/**/*.js'))
 notes_js = sorted(rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/notes/**/*.coffee'))
+instructor_dash_js = sorted(rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/instructor_dashboard/**/*.coffee'))
 
 PIPELINE_CSS = {
     'style-vendor': {
@@ -710,7 +711,7 @@ PIPELINE_JS = {
         'source_filenames': sorted(
             set(rooted_glob(COMMON_ROOT / 'static', 'coffee/src/**/*.js') +
                 rooted_glob(PROJECT_ROOT / 'static', 'coffee/src/**/*.js')) -
-            set(courseware_js + discussion_js + staff_grading_js + open_ended_js + notes_js)
+            set(courseware_js + discussion_js + staff_grading_js + open_ended_js + notes_js + instructor_dash_js)
         ) + [
             'js/form.ext.js',
             'js/my_courses_dropdown.js',
@@ -763,6 +764,11 @@ PIPELINE_JS = {
         'source_filenames': notes_js,
         'output_filename': 'js/notes.js',
         'test_order': 7
+    },
+    'instructor_dash': {
+        'source_filenames': instructor_dash_js,
+        'output_filename': 'js/instructor_dash.js',
+        'test_order': 9,
     },
 }
 
